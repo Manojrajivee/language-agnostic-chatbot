@@ -1,0 +1,36 @@
+# Windows / OS junk files
+Thumbs.db
+db.properties
+.DS_Store
+Desktop.ini
+
+# Python / Django
+backend/venv/
+backend/.env
+backend/db.sqlite3
+backend/**/__pycache__/
+backend/**/*.py[cod]
+backend/**/*.so
+backend/media/uploads/
+
+# Node / React
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+
+# IDEs and editors
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
