@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Menu, ArrowDown, Square, Globe } from 'lucide-react';
+import logo from '../assets/logo.png';
 import MessageBubble from './MessageBubble';
 import ThinkingIndicator from './ThinkingIndicator';
 import InputBar from './InputBar';
@@ -133,7 +134,7 @@ function WelcomeScreen({ onExampleClick }) {
   return (
     <div className="welcome-screen">
       <div className="welcome-icon" aria-hidden="true">
-        <Globe size={48} className="logo-icon" style={{ padding: 0, background: 'none' }} />
+        <img src={logo} alt="LinguaBot Logo" style={{ width: '80px', height: '80px', borderRadius: '16px', objectFit: 'cover', boxShadow: 'var(--shadow-md)' }} />
       </div>
       <h1 className="welcome-title">How can I help you today?</h1>
       <p className="welcome-sub">

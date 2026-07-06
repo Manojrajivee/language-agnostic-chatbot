@@ -4,6 +4,7 @@ import ChatWindow from './components/ChatWindow';
 import AuthModal from './components/AuthModal';
 import StatsPanel from './components/StatsPanel';
 import { useWebSocket } from './hooks/useWebSocket';
+import logo from './assets/logo.png';
 import { 
   getHistory, 
   sendMessage as restSend, 
@@ -609,7 +610,7 @@ export default function App() {
         
         {/* Logo */}
         <div className="sidebar-logo">
-          <div className="logo-icon" aria-hidden="true">🌐</div>
+          <img src={logo} alt="LinguaBot Logo" style={{ width: '38px', height: '38px', borderRadius: '8px', objectFit: 'cover' }} />
           <div>
             <div className="logo-text">LinguaBot</div>
             <div className="logo-sub">Multi-lingual AI Platform</div>
