@@ -1,17 +1,19 @@
 import { useRef, useState, useEffect } from 'react';
+import { Paperclip, Mic, Send, X, AlertCircle } from 'lucide-react';
 import { uploadFile } from '../services/api';
 
 const PLACEHOLDER_EXAMPLES = [
-  'Type in any language...',
+  'Ask me anything in any language...',
   'Écrivez en français...',
   'हिंदी में लिखें...',
   'اكتب بالعربية...',
   '日本語で入力...',
   'Напишите по-русски...',
+  'Escreva em português...',
 ];
 
 const SUPPORTED_LANGUAGES = [
-  { code: '', name: '🌍 Auto-Detect' },
+  { code: '', name: '🌍 Auto-Detect Language' },
   { code: 'en', name: '🇬🇧 English' },
   { code: 'hi', name: '🇮🇳 Hindi' },
   { code: 'ar', name: '🇸🇦 Arabic' },
@@ -26,12 +28,12 @@ const SUPPORTED_LANGUAGES = [
 
 /**
  * InputBar — message input with voice recognition, manual language override,
- * file uploading/attachments, auto-resizing textarea, and animated placeholder.
+ * file uploading/attachments, and auto-resizing.
  */
 export default function InputBar({ onSend, disabled }) {
   const [value, setValue] = useState('');
   const [placeholder, setPlaceholder] = useState(PLACEHOLDER_EXAMPLES[0]);
-  const [selectedLanguage, setSelectedLanguage] = useState(''); // Empty = Auto-detect
+  const [selectedLanguage, setSelectedLanguage] = useState('');
   const [isListening, setIsListening] = useState(false);
   
   // File upload state
@@ -42,9 +44,9 @@ export default function InputBar({ onSend, disabled }) {
   const placeholderIdx = useRef(0);
   const recognitionRef = useRef(null);
   const fileInputRef = useRef(null);
-
-  // Ref to store latest value to avoid recreating SpeechRecognition on every keystroke
   const valueRef = useRef(value);
+
+  // Sync value ref for voice callback closure
   useEffect(() => {
     valueRef.current = value;
   }, [value]);
@@ -54,11 +56,11 @@ export default function InputBar({ onSend, disabled }) {
     const interval = setInterval(() => {
       placeholderIdx.current = (placeholderIdx.current + 1) % PLACEHOLDER_EXAMPLES.length;
       setPlaceholder(PLACEHOLDER_EXAMPLES[placeholderIdx.current]);
-    }, 3500);
+    }, 4000);
     return () => clearInterval(interval);
   }, []);
 
-  // Auto-resize textarea
+  // Auto-resize textarea heights
   useEffect(() => {
     const ta = textareaRef.current;
     if (ta) {
@@ -121,7 +123,6 @@ export default function InputBar({ onSend, disabled }) {
     const trimmed = value.trim();
     if (!trimmed && !attachedFile) return;
     
-    // Call parent send handler with text + manual language + attachment file details
     onSend(trimmed, selectedLanguage, attachedFile?.path, attachedFile?.name);
     
     setValue('');
@@ -133,7 +134,8 @@ export default function InputBar({ onSend, disabled }) {
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    // Send message on Enter without shift key, or Ctrl+Enter
+    if ((e.key === 'Enter' && !e.shiftKey) || (e.key === 'Enter' && e.ctrlKey)) {
       e.preventDefault();
       handleSend();
     }
@@ -162,7 +164,6 @@ export default function InputBar({ onSend, disabled }) {
     const file = e.target.files[0];
     if (!file) return;
 
-    // 5MB validation
     if (file.size > 5 * 1024 * 1024) {
       alert("File size exceeds the 5MB limit.");
       return;
@@ -179,10 +180,9 @@ export default function InputBar({ onSend, disabled }) {
       });
     } catch (err) {
       console.error('[Upload] Error:', err);
-      alert(err.response?.data?.error || 'Failed to upload file. Support formats: PNG, JPG, JPEG, GIF, PDF, TXT.');
+      alert(err.response?.data?.error || 'Failed to upload file. Support formats: PNG, JPG, JPEG, GIF, PDF, TXT, DOCX.');
     } finally {
       setUploading(false);
-      // Reset input value
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
@@ -204,8 +204,8 @@ export default function InputBar({ onSend, disabled }) {
           ))}
         </select>
         {selectedLanguage === '' && (
-          <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 8, display: 'flex', alignItems: 'center' }}>
-            💡 Tip: Select your language in dropdown for better voice recognition accuracy.
+          <span style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <AlertCircle size={10} /> Tip: Select a language in dropdown for higher voice input accuracy.
           </span>
         )}
       </div>
@@ -230,7 +230,7 @@ export default function InputBar({ onSend, disabled }) {
                 onClick={() => setAttachedFile(null)} 
                 aria-label="Remove attachment"
               >
-                &times;
+                <X size={14} />
               </button>
             </div>
           )}
@@ -246,7 +246,7 @@ export default function InputBar({ onSend, disabled }) {
           accept=".png,.jpg,.jpeg,.gif,.pdf,.txt,.doc,.docx"
         />
 
-        {/* Paperclip Attachment Button */}
+        {/* Paperclip Button */}
         <button
           className="attach-btn"
           onClick={() => fileInputRef.current?.click()}
@@ -254,9 +254,7 @@ export default function InputBar({ onSend, disabled }) {
           title="Attach an image or document (Max 5MB)"
           aria-label="Attach file"
         >
-          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
-            <path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5c0-3.87 3.13-7 7-7s7 3.13 7 7v10.5c0 5.52-4.48 10-10 10S2.5 21.02 2.5 15.5V5H5v10.5c0 4.14 3.36 7.5 7.5 7.5s7.5-3.36 7.5-7.5V5c0-2.76-2.24-5-5-5s-5 2.24-5 5v12.5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V6h1.5z" />
-          </svg>
+          <Paperclip size={18} />
         </button>
 
         {/* Mic Button */}
@@ -274,9 +272,7 @@ export default function InputBar({ onSend, disabled }) {
               <span></span>
             </div>
           ) : (
-            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" />
-            </svg>
+            <Mic size={18} />
           )}
         </button>
 
@@ -300,16 +296,14 @@ export default function InputBar({ onSend, disabled }) {
           onClick={handleSend}
           disabled={(!value.trim() && !attachedFile) || disabled || uploading}
           aria-label="Send message"
-          title="Send message (Enter)"
+          title="Send message (Enter / Ctrl+Enter)"
         >
-          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-          </svg>
+          <Send size={16} />
         </button>
       </div>
 
       <div className="input-footer">
-        <span>Press <kbd style={{ background: 'rgba(255,255,255,0.08)', padding: '1px 5px', borderRadius: 4, fontSize: 10 }}>Enter</kbd> to send · <kbd style={{ background: 'rgba(255,255,255,0.08)', padding: '1px 5px', borderRadius: 4, fontSize: 10 }}>Shift+Enter</kbd> for new line</span>
+        <span>Press <kbd style={{ background: 'var(--bg-elevated)', padding: '2px 6px', borderRadius: 4, fontSize: 10, color: 'var(--text-secondary)' }}>Enter</kbd> to send · <kbd style={{ background: 'var(--bg-elevated)', padding: '2px 6px', borderRadius: 4, fontSize: 10, color: 'var(--text-secondary)' }}>Shift+Enter</kbd> for newline</span>
         <span>Supports 80+ languages 🌍</span>
       </div>
     </div>

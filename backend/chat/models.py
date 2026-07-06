@@ -8,6 +8,11 @@ class Conversation(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='conversations')
     session_id = models.CharField(max_length=128, unique=True, db_index=True)
+    title = models.CharField(max_length=255, blank=True, default='New Chat')
+    is_pinned = models.BooleanField(default=False)
+    is_saved = models.BooleanField(default=False)
+    category = models.CharField(max_length=50, default='Personal') # Folders: Work, Study, Personal, Coding
+    persona = models.CharField(max_length=50, default='default') # Personas: programming_expert, interview_coach, etc.
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -52,6 +57,9 @@ class Message(models.Model):
 
     # For user messages: the English translation used for NLP
     translated_content = models.TextField(blank=True, default='')
+
+    # Feedback reaction
+    is_liked = models.BooleanField(null=True, blank=True) # True = Liked, False = Disliked, None = No feedback
 
     created_at = models.DateTimeField(auto_now_add=True)
 

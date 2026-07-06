@@ -77,5 +77,13 @@ export function useWebSocket(sessionId, token, onMessage) {
     return false;
   }, []);
 
-  return { status, sendMessage };
+  const stopGeneration = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'stop_generation' }));
+      return true;
+    }
+    return false;
+  }, []);
+
+  return { status, sendMessage, stopGeneration };
 }

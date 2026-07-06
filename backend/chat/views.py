@@ -3,7 +3,7 @@ import os
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
@@ -298,6 +298,11 @@ class UserConversationsView(APIView):
 
     def get(self, request):
         conversations = Conversation.objects.filter(user=request.user)
+        q = request.query_params.get('q', '').strip()
+        if q:
+            conversations = conversations.filter(
+                Q(title__icontains=q) | Q(messages__content__icontains=q)
+            ).distinct()
         serializer = ConversationSerializer(conversations, many=True)
         return Response(serializer.data)
 
@@ -323,7 +328,7 @@ class LinkGuestConversationView(APIView):
 
 
 class ConversationView(APIView):
-    """Create or retrieve a conversation by session_id."""
+    """Create, retrieve, update or delete a conversation by session_id."""
 
     def get(self, request, session_id):
         conversation = get_object_or_404(Conversation, session_id=session_id)
@@ -342,6 +347,97 @@ class ConversationView(APIView):
         serializer = ConversationSerializer(conversation)
         status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
         return Response(serializer.data, status=status_code)
+
+    def patch(self, request, session_id):
+        conversation = get_object_or_404(Conversation, session_id=session_id)
+        if conversation.user and conversation.user != request.user:
+            return Response({'error': 'You do not have permission to edit this conversation.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        title = request.data.get('title')
+        is_pinned = request.data.get('is_pinned')
+        is_saved = request.data.get('is_saved')
+        category = request.data.get('category')
+        persona = request.data.get('persona')
+
+        if title is not None:
+            conversation.title = title
+        if is_pinned is not None:
+            conversation.is_pinned = is_pinned
+        if is_saved is not None:
+            conversation.is_saved = is_saved
+        if category is not None:
+            conversation.category = category
+        if persona is not None:
+            conversation.persona = persona
+
+        conversation.save()
+        serializer = ConversationSerializer(conversation)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def delete(self, request, session_id):
+        conversation = get_object_or_404(Conversation, session_id=session_id)
+        if conversation.user and conversation.user != request.user:
+            return Response({'error': 'You do not have permission to delete this conversation.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        conversation.delete()
+        return Response({'message': 'Conversation deleted successfully.'}, status=status.HTTP_200_OK)
+
+
+class DuplicateConversationView(APIView):
+    """Duplicates an existing conversation and its messages under a new session_id."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, session_id):
+        old_conv = get_object_or_404(Conversation, session_id=session_id)
+        if old_conv.user and old_conv.user != request.user:
+            return Response({'error': 'You do not have permission to duplicate this conversation.'}, status=status.HTTP_403_FORBIDDEN)
+
+        new_session_id = str(uuid.uuid4())
+        new_conv = Conversation.objects.create(
+            user=request.user,
+            session_id=new_session_id,
+            title=f"{old_conv.title} (Copy)",
+            is_pinned=False,
+            is_saved=old_conv.is_saved,
+            category=old_conv.category,
+            persona=old_conv.persona
+        )
+
+        messages_to_create = []
+        for msg in old_conv.messages.all():
+            messages_to_create.append(Message(
+                conversation=new_conv,
+                role=msg.role,
+                content=msg.content,
+                detected_language=msg.detected_language,
+                detected_language_name=msg.detected_language_name,
+                direction=msg.direction,
+                is_override_language=msg.is_override_language,
+                attachment=msg.attachment,
+                attachment_name=msg.attachment_name,
+                translated_content=msg.translated_content,
+                is_liked=msg.is_liked
+            ))
+        Message.objects.bulk_create(messages_to_create)
+
+        serializer = ConversationSerializer(new_conv)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class ReactMessageView(APIView):
+    """Endpoint to rate (like/dislike) a message."""
+    permission_classes = [AllowAny]
+
+    def post(self, request, message_id):
+        message = get_object_or_404(Message, id=message_id)
+        if message.conversation.user and message.conversation.user != request.user:
+            return Response({'error': 'You do not have permission to react to this message.'}, status=status.HTTP_403_FORBIDDEN)
+
+        is_liked = request.data.get('is_liked')
+        message.is_liked = is_liked
+        message.save()
+
+        return Response({'message': 'Reaction updated successfully.', 'is_liked': message.is_liked}, status=status.HTTP_200_OK)
 
 
 class ChatMessageView(APIView):

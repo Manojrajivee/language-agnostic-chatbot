@@ -9,7 +9,7 @@ class MessageSerializer(serializers.ModelSerializer):
             'id', 'role', 'content',
             'detected_language', 'detected_language_name',
             'direction', 'is_override_language',
-            'attachment', 'attachment_name', 'created_at',
+            'attachment', 'attachment_name', 'is_liked', 'created_at',
         ]
 
 
@@ -19,4 +19,9 @@ class ConversationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Conversation
-        fields = ['id', 'session_id', 'username', 'messages', 'created_at', 'updated_at']
+        fields = [
+            'id', 'session_id', 'username', 'title', 'is_pinned',
+            'is_saved', 'category', 'persona', 'messages',
+            'created_at', 'updated_at'
+        ]
+

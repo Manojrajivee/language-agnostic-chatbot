@@ -115,4 +115,16 @@ export const detectLanguage = (text) =>
 export const getLanguageStats = () =>
   api.get('/stats/languages/');
 
+export const updateConversation = (sessionId, data) =>
+  api.patch(`/conversations/${sessionId}/`, data);
+
+export const deleteConversation = (sessionId) =>
+  api.delete(`/conversations/${sessionId}/`);
+
+export const duplicateConversation = (sessionId) =>
+  api.post(`/conversations/${sessionId}/duplicate/`);
+
+export const rateMessage = (messageId, isLiked) =>
+  api.post(`/messages/${messageId}/react/`, { is_liked: isLiked });
+
 export default api;
