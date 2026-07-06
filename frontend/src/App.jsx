@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import './index.css';
 import ChatWindow from './components/ChatWindow';
-import AuthModal from './components/AuthModal';
+import LoginPage from './components/LoginPage';
+import DashboardPage from './components/DashboardPage';
 import StatsPanel from './components/StatsPanel';
 import { useWebSocket } from './hooks/useWebSocket';
 import logo from './assets/logo.png';
@@ -58,7 +59,6 @@ export default function App() {
   const [token, setToken] = useState(() => localStorage.getItem('lingua_bot_token') || '');
   const [username, setUsername] = useState(() => localStorage.getItem('lingua_bot_username') || '');
   const [email, setEmail] = useState(() => localStorage.getItem('lingua_bot_email') || 'user@linguabot.com');
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // Conversations list & active session
   const [conversations, setConversations] = useState([]);
@@ -74,7 +74,6 @@ export default function App() {
   // Modals state
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   // Theme state
   const [theme, setTheme] = useState(() => localStorage.getItem('lingua_theme') || 'system');
@@ -82,6 +81,39 @@ export default function App() {
   // Streaming state
   const [isStreamingActive, setIsStreamingActive] = useState(false);
   const [currentPersona, setCurrentPersona] = useState('default');
+
+  // Standalone page routing state
+  const [currentRoute, setCurrentRoute] = useState(() => {
+    const path = window.location.pathname;
+    if (path === '/login') return 'login';
+    if (path === '/dashboard') return 'dashboard';
+    return 'chat';
+  });
+
+  const navigateTo = (route) => {
+    setCurrentRoute(route);
+    const path = route === 'chat' ? '/' : `/${route}`;
+    window.history.pushState({}, '', path);
+  };
+
+  // Sync state with back/forward history navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      if (path === '/login') setCurrentRoute('login');
+      else if (path === '/dashboard') setCurrentRoute('dashboard');
+      else setCurrentRoute('chat');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Redirect to login if user tries to load dashboard unauthorized
+  useEffect(() => {
+    if (currentRoute === 'dashboard' && !token) {
+      navigateTo('login');
+    }
+  }, [currentRoute, token]);
 
   // Simple client-side routing logic for verify/reset links
   const [routeInfo, setRouteInfo] = useState(() => {
@@ -575,11 +607,11 @@ export default function App() {
           onComplete={(authData) => {
             if (authData) handleAuthSuccess(authData);
             setRouteInfo(null);
-            window.history.replaceState({}, '', '/');
+            navigateTo('chat');
           }} 
           onCancel={() => {
             setRouteInfo(null);
-            window.history.replaceState({}, '', '/');
+            navigateTo('chat');
           }} 
         />
       );
@@ -590,16 +622,43 @@ export default function App() {
           routeInfo={routeInfo} 
           onComplete={() => {
             setRouteInfo(null);
-            window.history.replaceState({}, '', '/');
-            setIsAuthModalOpen(true); 
+            navigateTo('login');
           }} 
           onCancel={() => {
             setRouteInfo(null);
-            window.history.replaceState({}, '', '/');
+            navigateTo('chat');
           }} 
         />
       );
     }
+  }
+
+  if (currentRoute === 'login') {
+    return (
+      <LoginPage 
+        onAuthSuccess={handleAuthSuccess} 
+        navigateTo={navigateTo} 
+      />
+    );
+  }
+
+  if (currentRoute === 'dashboard') {
+    return (
+      <DashboardPage
+        username={username}
+        email={email}
+        conversations={conversations}
+        msgCount={msgCount}
+        theme={theme}
+        setTheme={setTheme}
+        currentPersona={currentPersona}
+        handleSetPersona={handleSetPersona}
+        currentSessionId={currentSessionId}
+        handleExport={handleExport}
+        handleLogout={handleLogout}
+        navigateTo={navigateTo}
+      />
+    );
   }
 
   return (
@@ -805,7 +864,7 @@ export default function App() {
           <div className="sidebar-footer-menu">
             {token ? (
               <>
-                <button className="footer-icon-btn" onClick={() => setIsProfileModalOpen(true)} title="Profile Dashboard">
+                <button className="footer-icon-btn" onClick={() => navigateTo('dashboard')} title="Profile Dashboard">
                   <User size={18} />
                 </button>
                 <button className="footer-icon-btn" onClick={() => setIsSettingsModalOpen(true)} title="Settings & Options">
@@ -819,7 +878,7 @@ export default function App() {
                 </button>
               </>
             ) : (
-              <button className="new-chat-btn" onClick={() => setIsAuthModalOpen(true)} style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>
+              <button className="new-chat-btn" onClick={() => navigateTo('login')} style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>
                 🔑 Sign In / Sign Up
               </button>
             )}
@@ -852,60 +911,10 @@ export default function App() {
       </main>
 
       {/* Modals */}
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        onAuthSuccess={handleAuthSuccess}
-      />
-
       <StatsPanel
         isOpen={isStatsModalOpen}
         onClose={() => setIsStatsModalOpen(false)}
       />
-
-      {/* Profile Modal */}
-      {isProfileModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-card">
-            <div className="modal-header">
-              <h2>👤 Account Profile Dashboard</h2>
-              <button className="modal-close-btn" onClick={() => setIsProfileModalOpen(false)}>&times;</button>
-            </div>
-            <div className="modal-body">
-              <div style={{ textAlign: 'center', marginBottom: 24 }}>
-                <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%)', display: 'flex', alignItems: 'center', justify: 'center', color: '#fff', fontSize: 24, fontWeight: 'bold', margin: '0 auto 12px' }}>
-                  {username.charAt(0).toUpperCase()}
-                </div>
-                <h3 style={{ color: 'var(--text-primary)' }}>{username}</h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{email}</p>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 20 }}>
-                <div style={{ background: 'var(--bg-secondary)', padding: 12, borderRadius: 8, textAlign: 'center' }}>
-                  <div style={{ fontSize: 20, fontWeight: 'bold', color: 'var(--accent-primary)' }}>{conversations.length}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Total Conversations</div>
-                </div>
-                <div style={{ background: 'var(--bg-secondary)', padding: 12, borderRadius: 8, textAlign: 'center' }}>
-                  <div style={{ fontSize: 20, fontWeight: 'bold', color: 'var(--accent-primary)' }}>{msgCount}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Messages in Current Session</div>
-                </div>
-              </div>
-
-              <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 16 }}>
-                <h4 style={{ color: 'var(--text-primary)', marginBottom: 8, fontSize: 13 }}>Status & Details</h4>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Active Languages:</span>
-                  <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{detectedLangs.size || 1}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Selected Theme:</span>
-                  <span style={{ color: 'var(--text-primary)', fontWeight: 500, textTransform: 'capitalize' }}>{theme}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Settings Modal */}
       {isSettingsModalOpen && (
