@@ -1,113 +1,109 @@
-# LinguaBot — Language Agnostic Chatbot
+# LinguaBot — Premium Language Agnostic Chat Platform
 
-A multilingual AI chatbot that detects user language automatically, processes messages in English, and responds in the user's original language — with full RTL/LTR rendering support.
+LinguaBot is a production-ready, feature-rich multilingual AI chatbot application. It automatically detects the user's language, translates it to English for Gemini NLP processing, and streams responsive answers back in the user's original language. It supports 80+ languages, dynamic Right-to-Left (RTL) formatting, and features a state-of-the-art UI similar to ChatGPT, Claude, and Gemini.
 
-## Architecture
+---
+
+## 🚀 Key Premium Features
+
+- 🌍 **Agnostic Multilingual Pipeline** — Automatically detects 80+ languages (Hindi, Arabic, French, Japanese, Russian, etc.) and translates input/output at boundary levels.
+- ⚡ **Word-by-Word Response Streaming** — Leverages async thread execution and queue pools to stream responses back in real-time.
+- 🗣️ **Multilingual Text-to-Speech (TTS)** — Speak response reads content aloud in native locales (English, French, Hindi, Portuguese, Spanish, and more).
+- 🎤 **Voice Input Recognition** — Press the microphone to type messages using Web Speech API dictation.
+- 📁 **Conversations Folder Categories** — Organize chat histories into custom tags (**Work**, **Study**, **Personal**, **Coding**).
+- 📌 **Pinned & Starred Chats** — Bookmark important chats to the top of the sidebar.
+- 📝 **Markdown & Code Highlighting** — Fully parses markdown headers, lists, tables, and provides code block formatting via `highlight.js` with a dedicated **Copy code** button.
+- 📋 **Reactions & Actions** — Rate bot responses (Like/Dislike), copy full messages, and share links to clipboard.
+- 🎨 **Adaptive Themes** — Toggle between vibrant Light theme, premium Dark theme, and System Auto-preferences.
+- 📥 **Chat Exports** — Export sessions instantly as **TXT**, **Markdown**, or a clean **PDF** layout.
+- ⌨️ **Keyboard Shortcuts** — Navigate like a power user: `Ctrl + N` for New Chat, `Ctrl + K` for search focus, and `Enter` / `Ctrl + Enter` to send.
+
+---
+
+## 🛠️ Tech Stack & Libraries
+
+### Frontend
+- **Core**: React 19 + Vite
+- **Styling**: Modern CSS variables & media query theme resolvers (No Tailwind bloat)
+- **Icons**: `lucide-react`
+- **Markdown & Highlight**: `react-markdown`, `remark-gfm`, `highlight.js`
+
+### Backend
+- **Core**: Django 4.2 + Django REST Framework
+- **Real-Time WebSockets**: Django Channels 4.0 + Daphne ASGI
+- **Translation & NLP Pipeline**: `langdetect` + `deep-translator` (Google Translate) + `google-generativeai` (Gemini 2.5 Flash)
+- **Database**: PostgreSQL (Production) / SQLite (Development fallback)
+
+---
+
+## 📐 Architecture Flow
 
 ```
-React Frontend (Vite) ←→ Django Backend (DRF + Channels) ←→ PostgreSQL + Redis
-                                      ↕
-                          Language Engine (langdetect + deep-translator)
-                                      ↕
-                              Gemini API (response generation)
+React Frontend (Vite) ← [WebSocket Chunks / REST] → Django Channels (Daphne)
+                                                    ↕
+                                        Task queue (asyncio.Queue)
+                                                    ↕
+                                     ThreadExecutor (Gemini Stream)
+                                                    ↕
+                                        Sentence-Level Translator
 ```
 
-## Tech Stack
+---
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React 18 + Vite + Axios |
-| Backend | Django 4.2 + DRF + Channels |
-| Real-time | WebSocket (Django Channels + Redis) |
-| Language Detection | `langdetect` |
-| Translation | `deep-translator` (Google Translate) |
-| Response Generation | Google Gemini 1.5 Flash |
-| Database | PostgreSQL |
+## ⚙️ Environment Variables
 
-## Supported Languages
+Create a `backend/.env` file in the backend root:
 
-80+ languages including Arabic, Hindi, French, German, Japanese, Korean, Chinese, Russian, Portuguese, Spanish, Tamil, Telugu, Urdu, Hebrew, and many more.
+```env
+SECRET_KEY=your-django-secret-key
+DEBUG=True
 
-## Quick Start
+# Database (PostgreSQL)
+DB_NAME=chatbot_db
+DB_USER=postgres
+DB_PASSWORD=your-postgres-password
+DB_HOST=localhost
+DB_PORT=5432
 
-### Prerequisites
-- Python 3.9+
-- Node.js 18+
-- Docker (for PostgreSQL + Redis)
-
-### 1. Start databases
-```bash
-docker-compose up -d
+# Gemini API Key (Get from https://aistudio.google.com)
+GEMINI_API_KEY=your_gemini_api_key
 ```
 
-### 2. Backend setup
+---
+
+## 🚀 Quick Start
+
+### 1. Backend Server
+Ensure you have active virtualenv setup:
 ```bash
 cd backend
-
-# Create virtual environment
 python -m venv venv
-venv\Scripts\activate    # Windows
-# source venv/bin/activate  # macOS/Linux
+venv\Scripts\activate      # On Windows
+# source venv/bin/activate # On macOS/Linux
 
-# Install dependencies
 pip install -r requirements.txt
-
-# Copy and configure environment
-copy .env.example .env
-# Edit .env and add your GEMINI_API_KEY
-
-# Run migrations
 python manage.py makemigrations
 python manage.py migrate
-
-# Start Django server
 python manage.py runserver
-# OR with WebSocket support (recommended):
-daphne -b 0.0.0.0 -p 8000 chatbot.asgi:application
 ```
 
-### 3. Frontend setup
+### 2. Frontend Development Server
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
+Open **`http://localhost:5173`** in your browser.
 
-### 4. Open the app
-Visit: **http://localhost:5173**
+---
 
-## Environment Variables
+## 📡 API & WebSocket Routing
 
-Copy `backend/.env.example` to `backend/.env` and fill in:
-
-```env
-SECRET_KEY=your-django-secret-key
-GEMINI_API_KEY=your-gemini-api-key   # Get from https://aistudio.google.com
-DB_NAME=chatbot_db
-DB_USER=postgres
-DB_PASSWORD=postgres
-DB_HOST=localhost
-DB_PORT=5432
-REDIS_URL=redis://localhost:6379
-```
-
-## API Endpoints
-
-| Method | Endpoint | Description |
+| Protocol | Endpoint | Description |
 |--------|---------|-------------|
-| POST | `/api/conversations/` | Create conversation session |
-| GET | `/api/conversations/{id}/` | Get conversation |
-| POST | `/api/chat/{id}/send/` | Send message (REST) |
-| GET | `/api/chat/{id}/history/` | Get message history |
-| POST | `/api/detect-language/` | Detect text language |
-| WS | `ws://localhost:8000/ws/chat/{id}/` | Real-time WebSocket chat |
-
-## Features
-
-- 🌍 **80+ Languages** — Type in any language, get responses in kind
-- 🔍 **Auto Detection** — No manual language selection needed
-- ↔️ **RTL Support** — Arabic, Hebrew, Urdu render right-to-left
-- 💬 **Real-time Chat** — WebSocket with REST fallback
-- 💾 **Persistent History** — Conversations stored in PostgreSQL
-- 🤖 **AI Responses** — Powered by Google Gemini
-- 🎨 **Premium UI** — Dark glassmorphism design
+| **GET** | `/api/conversations/user/` | Fetch authenticated user's conversations |
+| **PATCH** | `/api/conversations/{session_id}/` | Rename, Pin, or Tag conversation categories |
+| **DELETE** | `/api/conversations/{session_id}/` | Delete conversation history |
+| **POST** | `/api/conversations/{session_id}/duplicate/` | Duplicate conversation history |
+| **POST** | `/api/messages/{message_id}/react/` | Upvote (Like) / Downvote (Dislike) bot messages |
+| **WS** | `ws://localhost:8000/ws/chat/{session_id}/` | WebSocket connection for real-time streaming |
