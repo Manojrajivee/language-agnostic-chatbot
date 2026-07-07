@@ -107,3 +107,18 @@ Open **`http://localhost:5173`** in your browser.
 | **POST** | `/api/conversations/{session_id}/duplicate/` | Duplicate conversation history |
 | **POST** | `/api/messages/{message_id}/react/` | Upvote (Like) / Downvote (Dislike) bot messages |
 | **WS** | `ws://localhost:8000/ws/chat/{session_id}/` | WebSocket connection for real-time streaming |
+
+
+
+---
+
+## Author
+
+Manoj Rajivee
+
+Full Stack Developer
+
+LinkedIn: www.linkedin.com/in/manojrajivee
+
+GitHub: https://github.com/Manojrajivee
+
