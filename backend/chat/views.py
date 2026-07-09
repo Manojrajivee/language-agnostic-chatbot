@@ -440,89 +440,102 @@ class ReactMessageView(APIView):
         return Response({'message': 'Reaction updated successfully.', 'is_liked': message.is_liked}, status=status.HTTP_200_OK)
 
 
-class ChatMessageView(APIView):
-    """REST endpoint for sending messages (fallback when WebSocket unavailable)."""
+    class ChatMessageView(APIView):
+        """REST endpoint for sending messages (fallback when WebSocket unavailable)."""
 
-    def post(self, request, session_id):
-        user_message = request.data.get('message', '').strip()
-        override_lang = request.data.get('override_language', '').strip()
-        attachment_path = request.data.get('attachment_path', '').strip()
-        attachment_name = request.data.get('attachment_name', '').strip()
-        
-        if not user_message and not attachment_path:
-            return Response({'error': 'Message text or attachment is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        def post(self, request, session_id):
+            user_message = request.data.get('message', '').strip()
+            override_lang = request.data.get('override_language', '').strip()
+            attachment_path = request.data.get('attachment_path', '').strip()
+            attachment_name = request.data.get('attachment_name', '').strip()
+            
+            if not user_message and not attachment_path:
+                return Response({'error': 'Message text or attachment is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Get or create conversation
-        conversation, _ = Conversation.objects.get_or_create(session_id=session_id)
-        if request.user.is_authenticated and conversation.user is None:
-            conversation.user = request.user
-            conversation.save()
+            # Get or create conversation
+            conversation, _ = Conversation.objects.get_or_create(session_id=session_id)
+            if request.user.is_authenticated and conversation.user is None:
+                conversation.user = request.user
+                conversation.save()
 
-        # Determine language details
-        is_override = False
-        if override_lang and override_lang in LANGUAGE_NAMES:
-            lang_code = override_lang
-            lang_name = LANGUAGE_NAMES[override_lang]
-            lang_dir = 'rtl' if override_lang in RTL_LANGUAGES else 'ltr'
-            lang_info = {'code': lang_code, 'name': lang_name, 'direction': lang_dir}
-            is_override = True
-        else:
-            # Use message text if present, fallback to English for purely file-based chat
-            lang_info = detect_language(user_message) if user_message else {'code': 'en', 'name': 'English', 'direction': 'ltr'}
+            # Determine language details
+            is_override = False
+            if override_lang and override_lang in LANGUAGE_NAMES:
+                lang_code = override_lang
+                lang_name = LANGUAGE_NAMES[override_lang]
+                lang_dir = 'rtl' if override_lang in RTL_LANGUAGES else 'ltr'
+                lang_info = {'code': lang_code, 'name': lang_name, 'direction': lang_dir}
+                is_override = True
+            else:
+                # Use message text if present, fallback to English for purely file-based chat
+                lang_info = detect_language(user_message) if user_message else {'code': 'en', 'name': 'English', 'direction': 'ltr'}
 
-        # Save user message
-        Message.objects.create(
-            conversation=conversation,
-            role='user',
-            content=user_message,
-            detected_language=lang_info['code'],
-            detected_language_name=lang_info['name'],
-            direction=lang_info['direction'],
-            is_override_language=is_override,
-            attachment=attachment_path or None,
-            attachment_name=attachment_name,
-        )
+            # Save user message
+            Message.objects.create(
+                conversation=conversation,
+                role='user',
+                content=user_message,
+                detected_language=lang_info['code'],
+                detected_language_name=lang_info['name'],
+                direction=lang_info['direction'],
+                is_override_language=is_override,
+                attachment=attachment_path or None,
+                attachment_name=attachment_name,
+            )
+            lower_msg = user_message.lower()
 
-        # Translate → NLP → translate back
-        english_text = translate_to_english(user_message, lang_info['code']) if user_message else ''
-        
-        # Call Gemini response generator (with attachment if present)
-        english_response = generate_response_sync(english_text, session_id, attachment_path)
+            is_translation_request = (
+                "translate" in lower_msg or
+                "translation" in lower_msg
+)
 
-        if lang_info['code'] != 'en' and english_response:
-            final_response = translate_from_english(english_response, lang_info['code'])
-        else:
-            final_response = english_response
+            # Translate → NLP → translate back
+            english_text = translate_to_english(user_message, lang_info['code']) if user_message else ''
+            
+            # Call Gemini response generator (with attachment if present)
+            if is_translation_request:
+                english_response = english_text
+            else:
+                english_response = generate_response_sync(
+                english_text,
+                session_id,
+                attachment_path
+    )
 
-        # Save bot message
-        bot_msg = Message.objects.create(
-            conversation=conversation,
-            role='bot',
-            content=final_response,
-            detected_language=lang_info['code'],
-            detected_language_name=lang_info['name'],
-            direction=lang_info['direction'],
-            translated_content=english_response,
-        )
+            if lang_info['code'] != 'en' and english_response:
+                final_response = translate_from_english(english_response, lang_info['code'])
+            else:
+                final_response = english_response
 
-        return Response({
-            'user_message': {
-                'content': user_message,
-                'detected_language': lang_info['code'],
-                'detected_language_name': lang_info['name'],
-                'direction': lang_info['direction'],
-                'is_override_language': is_override,
-                'attachment': request.build_absolute_uri(settings.MEDIA_URL + attachment_path) if attachment_path else None,
-                'attachment_name': attachment_name,
-            },
-            'bot_message': {
-                'content': final_response,
-                'detected_language': lang_info['code'],
-                'detected_language_name': lang_info['name'],
-                'direction': lang_info['direction'],
-                'id': str(bot_msg.id),
-            },
-        }, status=status.HTTP_200_OK)
+            # Save bot message
+            bot_msg = Message.objects.create(
+                conversation=conversation,
+                role='bot',
+                content=final_response,
+                detected_language=lang_info['code'],
+                detected_language_name=lang_info['name'],
+                direction=lang_info['direction'],
+                translated_content=english_response,
+            )
+
+            return Response({
+                'user_message': {
+                    'content': user_message,
+                    'detected_language': lang_info['code'],
+                    'detected_language_name': lang_info['name'],
+                    'direction': lang_info['direction'],
+                    'is_override_language': is_override,
+                    'attachment': request.build_absolute_uri(settings.MEDIA_URL + attachment_path) if attachment_path else None,
+                    'attachment_name': attachment_name,
+                },
+                'bot_message': {
+                    'content': final_response,
+                    'detected_language': lang_info['code'],
+                    'detected_language_name': lang_info['name'],
+                    'direction': lang_info['direction'],
+                    'id': str(bot_msg.id),
+                },
+            }, status=status.HTTP_200_OK)
 
 
 class HistoryView(APIView):
