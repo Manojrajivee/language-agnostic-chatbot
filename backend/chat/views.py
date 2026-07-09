@@ -440,7 +440,7 @@ class ReactMessageView(APIView):
         return Response({'message': 'Reaction updated successfully.', 'is_liked': message.is_liked}, status=status.HTTP_200_OK)
 
 
-    class ChatMessageView(APIView):
+class ChatMessageView(APIView):
         """REST endpoint for sending messages (fallback when WebSocket unavailable)."""
 
         def post(self, request, session_id):
