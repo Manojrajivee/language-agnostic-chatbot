@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-const WS_BASE = 'ws://localhost:8000/ws/chat';
-
+const WS_BASE = 'wss://language-agnostic-chatbot-btov.onrender.com/ws/chat';
 /**
  * useWebSocket — manages a WebSocket connection to the Django Channels backend.
  * Handles connect, disconnect, reconnect, message dispatching, and auth token.

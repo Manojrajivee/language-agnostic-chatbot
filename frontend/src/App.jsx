@@ -237,7 +237,7 @@ export default function App() {
             lastUser.direction = data.direction;
             lastUser.is_override_language = data.is_override_language;
             if (data.attachment) {
-              lastUser.attachment = `http://localhost:8000${data.attachment}`;
+              lastUser.attachment = lastUser.attachment =`https://language-agnostic-chatbot-btov.onrender.com${data.attachment}`;
               lastUser.attachment_name = data.attachment_name;
             }
           }
@@ -350,7 +350,9 @@ export default function App() {
       detected_language_name: overrideLanguage ? 'Manual Override' : null,
       direction: 'ltr',
       is_override_language: !!overrideLanguage,
-      attachment: attachmentPath ? `http://localhost:8000/media/${attachmentPath}` : null,
+     attachment: attachmentPath
+  ? `https://language-agnostic-chatbot-btov.onrender.com/media/${attachmentPath}`
+  : null,
       attachment_name: attachmentName,
       created_at: new Date().toISOString(),
     };
