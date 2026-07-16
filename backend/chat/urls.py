@@ -7,12 +7,6 @@ urlpatterns = [
     path('auth/login/', views.LoginView.as_view(), name='login'),
     path('auth/logout/', views.LogoutView.as_view(), name='logout'),
     
-    # Password Reset & Email Verification endpoints
-    path('auth/password-reset/', views.RequestPasswordResetView.as_view(), name='password-reset-request'),
-    path('auth/password-reset/confirm/', views.ConfirmPasswordResetView.as_view(), name='password-reset-confirm'),
-    path('auth/verify-email/', views.SendVerificationEmailView.as_view(), name='verify-email-request'),
-    path('auth/verify-email/confirm/', views.ConfirmEmailVerificationView.as_view(), name='verify-email-confirm'),
-    
     # Conversations endpoints
     path('conversations/user/', views.UserConversationsView.as_view(), name='user-conversations'),
     path('conversations/link-guest/', views.LinkGuestConversationView.as_view(), name='link-guest'),

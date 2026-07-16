@@ -8,7 +8,7 @@ const api = axios.create({
 });
 
 // Configure token on startup if it exists in local storage
-const token = localStorage.getItem('lingua_bot_token');
+const token = localStorage.getItem('token');
 if (token) {
   api.defaults.headers.common['Authorization'] = `Token ${token}`;
 }
@@ -19,7 +19,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response && error.response.status === 401) {
       console.warn('[API] Stale token detected. Clearing local auth storage...');
-      localStorage.removeItem('lingua_bot_token');
+      localStorage.removeItem('token');
       localStorage.removeItem('lingua_bot_username');
       delete api.defaults.headers.common['Authorization'];
       window.location.reload();
@@ -40,7 +40,7 @@ export const login = async (username, password) => {
   const response = await api.post('/auth/login/', { username, password });
   const data = response.data;
   if (data.token) {
-    localStorage.setItem('lingua_bot_token', data.token);
+    localStorage.setItem('token', data.token);
     api.defaults.headers.common['Authorization'] = `Token ${data.token}`;
   }
   return data;
@@ -48,24 +48,9 @@ export const login = async (username, password) => {
 
 export const logout = async () => {
   await api.post('/auth/logout/');
-  localStorage.removeItem('lingua_bot_token');
+  localStorage.removeItem('token');
   delete api.defaults.headers.common['Authorization'];
 };
-
-/**
- * Password Reset & Email Verification endpoints
- */
-export const requestPasswordReset = (email) =>
-  api.post('/auth/password-reset/', { email });
-
-export const confirmPasswordReset = (uid, token, newPassword) =>
-  api.post('/auth/password-reset/confirm/', { uid, token, new_password: newPassword });
-
-export const requestVerificationEmail = (username) =>
-  api.post('/auth/verify-email/', { username });
-
-export const confirmEmailVerification = (uid, token) =>
-  api.post('/auth/verify-email/confirm/', { uid, token });
 
 /**
  * Conversations API endpoints

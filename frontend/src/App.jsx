@@ -56,7 +56,7 @@ export default function App() {
   const [msgCount, setMsgCount] = useState(0);
 
   // Auth state
-  const [token, setToken] = useState(() => localStorage.getItem('lingua_bot_token') || '');
+  const [token, setToken] = useState(() => localStorage.getItem('token') || '');
   const [username, setUsername] = useState(() => localStorage.getItem('lingua_bot_username') || '');
   const [email, setEmail] = useState(() => localStorage.getItem('lingua_bot_email') || 'user@linguabot.com');
 
@@ -118,12 +118,8 @@ export default function App() {
   // Simple client-side routing logic for verify/reset links
   const [routeInfo, setRouteInfo] = useState(() => {
     const path = window.location.pathname;
-    const verifyMatch = path.match(/^\/verify-email\/([^/]+)\/([^/]+)\/?$/);
     const resetMatch = path.match(/^\/reset-password\/([^/]+)\/([^/]+)\/?$/);
     
-    if (verifyMatch) {
-      return { type: 'verify', uid: verifyMatch[1], token: verifyMatch[2] };
-    }
     if (resetMatch) {
       return { type: 'reset', uid: resetMatch[1], token: resetMatch[2] };
     }
@@ -428,7 +424,7 @@ export default function App() {
     setToken(data.token);
     setUsername(data.username);
     setEmail(data.email || `${data.username}@linguabot.com`);
-    localStorage.setItem('lingua_bot_token', data.token);
+    localStorage.setItem('token', data.token);
     localStorage.setItem('lingua_bot_username', data.username);
     localStorage.setItem('lingua_bot_email', data.email || `${data.username}@linguabot.com`);
 
@@ -449,7 +445,7 @@ export default function App() {
     setToken('');
     setUsername('');
     setEmail('user@linguabot.com');
-    localStorage.removeItem('lingua_bot_token');
+    localStorage.removeItem('token');
     localStorage.removeItem('lingua_bot_username');
     localStorage.removeItem('lingua_bot_email');
     setConversations([]);
@@ -600,24 +596,8 @@ export default function App() {
   const pinnedConversations = filteredConversations.filter(c => c.is_pinned);
   const unpinnedConversations = filteredConversations.filter(c => !c.is_pinned);
 
-  // Route Rendering for Email Verification and Password Reset confirms
+  // Route Rendering for Password Reset confirms
   if (routeInfo) {
-    if (routeInfo.type === 'verify') {
-      return (
-        <EmailVerificationScreen 
-          routeInfo={routeInfo} 
-          onComplete={(authData) => {
-            if (authData) handleAuthSuccess(authData);
-            setRouteInfo(null);
-            navigateTo('chat');
-          }} 
-          onCancel={() => {
-            setRouteInfo(null);
-            navigateTo('chat');
-          }} 
-        />
-      );
-    }
     if (routeInfo.type === 'reset') {
       return (
         <PasswordResetConfirmScreen 
@@ -1019,53 +999,6 @@ export default function App() {
 
 // ── Link Routing Screen Subcomponents ────────────────────────
 
-function EmailVerificationScreen({ routeInfo, onComplete, onCancel }) {
-  const [status, setStatus] = useState('verifying'); 
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    import('./services/api').then(({ confirmEmailVerification }) => {
-      confirmEmailVerification(routeInfo.uid, routeInfo.token)
-        .then(({ data }) => {
-          setStatus('success');
-          setTimeout(() => {
-            onComplete(data);
-          }, 2000);
-        })
-        .catch((err) => {
-          setStatus('error');
-          setError(err.response?.data?.error || 'Verification link invalid or expired.');
-        });
-    });
-  }, [routeInfo, onComplete]);
-
-  return (
-    <div className="auth-overlay">
-      <div className="glass-card auth-modal" style={{ textAlign: 'center', padding: '40px', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 16 }}>
-        {status === 'verifying' && (
-          <div>
-            <h2 style={{ color: 'var(--text-primary)', marginBottom: '16px' }}>✉️ Verifying Account</h2>
-            <div className="loader-dots"><span></span><span></span><span></span></div>
-            <p style={{ color: 'var(--text-secondary)', marginTop: '16px' }}>Activating your account credentials. Please wait...</p>
-          </div>
-        )}
-        {status === 'success' && (
-          <div>
-            <h2 style={{ color: 'var(--success)', marginBottom: '16px' }}>✅ Activation Success!</h2>
-            <p style={{ color: 'var(--text-secondary)' }}>Your account is verified and ready. Redirecting to chat...</p>
-          </div>
-        )}
-        {status === 'error' && (
-          <div>
-            <h2 style={{ color: 'var(--error)', marginBottom: '16px' }}>❌ Verification Failed</h2>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>{error}</p>
-            <button className="auth-submit-btn" onClick={onCancel}>Back to Main Screen</button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function PasswordResetConfirmScreen({ routeInfo, onComplete, onCancel }) {
   const [password, setPassword] = useState('');

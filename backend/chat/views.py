@@ -1,14 +1,11 @@
 import uuid
 import os
+import logging
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.db.models import Count, Q
 from django.conf import settings
-from django.contrib.auth.tokens import default_token_generator
-from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
-from django.utils.encoding import force_bytes, force_str
-from django.core.mail import send_mail
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 
@@ -24,9 +21,11 @@ from language.detector import detect_language, LANGUAGE_NAMES, RTL_LANGUAGES
 from language.translator import translate_to_english, translate_from_english
 from language.response import generate_response_sync
 
+logger = logging.getLogger(__name__)
+
 
 class SignupView(APIView):
-    """Register a new user, mark inactive, and send a verification email."""
+    """Register a new user directly active, and return success response."""
     permission_classes = [AllowAny]
     authentication_classes = []
     
@@ -45,41 +44,29 @@ class SignupView(APIView):
             return Response({'error': 'Email is already registered.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # Create user inactive until verified
+            # Create active user immediately
             user = User.objects.create_user(username=username, email=email, password=password)
-            user.is_active = False
+            user.is_active = True
             user.save()
-            
-            # Send verification email
-            token = default_token_generator.make_token(user)
-            uid = urlsafe_base64_encode(force_bytes(user.pk))
-            verify_link = f"http://localhost:5173/verify-email/{uid}/{token}/"
-            
-            send_mail(
-                subject="Verify Your LinguaBot Account",
-                message=(
-                    f"Hi {user.username},\n\n"
-                    f"Please click the link below to verify and activate your account:\n"
-                    f"{verify_link}\n\n"
-                    f"Thank you!"
-                ),
-                from_email=None,
-                recipient_list=[user.email],
-                fail_silently=False,
-            )
 
             return Response({
-                'message': 'Account registered! Please check the terminal console (or email) to verify your account.',
+                'message': 'Account created successfully.',
                 'username': user.username,
                 'email': user.email
             }, status=status.HTTP_201_CREATED)
             
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            logger.exception("Signup Error")
+            return Response(
+                {
+                    'error': 'Internal Server Error'
+                },
+                status=500
+            )
 
 
 class LoginView(APIView):
-    """Authenticate user and return their Auth Token (only if active/verified)."""
+    """Authenticate user and return their Auth Token immediately."""
     permission_classes = [AllowAny]
     authentication_classes = []
     
@@ -92,15 +79,10 @@ class LoginView(APIView):
 
         user = authenticate(username=username, password=password)
         if not user:
-            # Check if user exists but is inactive
-            user_exists = User.objects.filter(username=username).first()
-            if user_exists and not user_exists.is_active:
-                return Response({
-                    'error': 'Your account is registered but unverified. Please verify your email first.',
-                    'unverified': True,
-                    'username': username
-                }, status=status.HTTP_403_FORBIDDEN)
-            return Response({'error': 'Invalid credentials.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {'error': 'Invalid credentials.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         token, _ = Token.objects.get_or_create(user=user)
         return Response({
@@ -121,137 +103,6 @@ class LogoutView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-
-class SendVerificationEmailView(APIView):
-    """Re-send verification email for an unverified/inactive account."""
-    permission_classes = [AllowAny]
-    authentication_classes = []
-    
-    def post(self, request):
-        username = request.data.get('username', '').strip()
-        if not username:
-            return Response({'error': 'Username is required.'}, status=status.HTTP_400_BAD_REQUEST)
-            
-        user = User.objects.filter(username=username).first()
-        if not user:
-            return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
-            
-        if user.is_active:
-            return Response({'message': 'Account is already verified.'}, status=status.HTTP_200_OK)
-            
-        try:
-            token = default_token_generator.make_token(user)
-            uid = urlsafe_base64_encode(force_bytes(user.pk))
-            verify_link = f"http://localhost:5173/verify-email/{uid}/{token}/"
-            
-            send_mail(
-                subject="Verify Your LinguaBot Account",
-                message=(
-                    f"Hi {user.username},\n\n"
-                    f"Please click the link below to verify and activate your account:\n"
-                    f"{verify_link}\n\n"
-                    f"Thank you!"
-                ),
-                from_email=None,
-                recipient_list=[user.email],
-                fail_silently=False,
-            )
-            return Response({'message': 'Verification email has been re-sent.'}, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-
-class ConfirmEmailVerificationView(APIView):
-    """Verify activation token and mark user as active."""
-    permission_classes = [AllowAny]
-    authentication_classes = []
-    
-    def post(self, request):
-        uidb64 = request.data.get('uid')
-        token = request.data.get('token')
-
-        if not uidb64 or not token:
-            return Response({'error': 'uid and token are required.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            uid = force_str(urlsafe_base64_decode(uidb64))
-            user = User.objects.get(pk=uid)
-        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-            user = None
-
-        if user is not None and default_token_generator.check_token(user, token):
-            user.is_active = True
-            user.save()
-            
-            token_obj, _ = Token.objects.get_or_create(user=user)
-            return Response({
-                'message': 'Account verified and activated successfully!',
-                'token': token_obj.key,
-                'username': user.username,
-                'email': user.email
-            }, status=status.HTTP_200_OK)
-        else:
-            return Response({'error': 'Invalid or expired verification link.'}, status=status.HTTP_400_BAD_REQUEST)
-
-
-class RequestPasswordResetView(APIView):
-    """Request password reset link via email."""
-    permission_classes = [AllowAny]
-    authentication_classes = []
-    
-    def post(self, request):
-        email = request.data.get('email', '').strip()
-        if not email:
-            return Response({'error': 'Email is required.'}, status=status.HTTP_400_BAD_REQUEST)
-            
-        users = User.objects.filter(email=email)
-        if users.exists():
-            for user in users:
-                token = default_token_generator.make_token(user)
-                uid = urlsafe_base64_encode(force_bytes(user.pk))
-                reset_link = f"http://localhost:5173/reset-password/{uid}/{token}/"
-                
-                send_mail(
-                    subject="Reset Your LinguaBot Password",
-                    message=(
-                        f"Hi {user.username},\n\n"
-                        f"You requested to reset your password. Click the link below to reset it:\n"
-                        f"{reset_link}\n\n"
-                        f"If you did not request this, please ignore this email."
-                    ),
-                    from_email=None,
-                    recipient_list=[email],
-                    fail_silently=False,
-                )
-                
-        return Response({'message': 'If a matching account exists, a password reset link has been sent.'}, status=status.HTTP_200_OK)
-
-
-class ConfirmPasswordResetView(APIView):
-    """Complete password reset using token."""
-    permission_classes = [AllowAny]
-    authentication_classes = []
-    
-    def post(self, request):
-        uidb64 = request.data.get('uid')
-        token = request.data.get('token')
-        new_password = request.data.get('new_password', '').strip()
-
-        if not uidb64 or not token or not new_password:
-            return Response({'error': 'uid, token, and new_password are required.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            uid = force_str(urlsafe_base64_decode(uidb64))
-            user = User.objects.get(pk=uid)
-        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-            user = None
-
-        if user is not None and default_token_generator.check_token(user, token):
-            user.set_password(new_password)
-            user.save()
-            return Response({'message': 'Password has been reset successfully.'}, status=status.HTTP_200_OK)
-        else:
-            return Response({'error': 'Invalid or expired password reset link.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class FileUploadView(APIView):
