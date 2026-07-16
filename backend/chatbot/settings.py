@@ -1,4 +1,5 @@
 import os
+import socket
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -147,6 +148,7 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # Email Configuration
+socket.AF_INET6 = socket.AF_INET  # ⚠️ blunt hammer — see safer version below
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
