@@ -44,9 +44,15 @@ export default function LoginPage({ onAuthSuccess, navigateTo }) {
 
   return (
     <div className="login-page-container">
-      {/* Background Glow Orbs */}
-      <div className="bg-glow-orb orb-1"></div>
-      <div className="bg-glow-orb orb-2"></div>
+      {/* Premium Background Layer */}
+      <div className="chat-watermark-container" aria-hidden="true">
+        <div className="chat-watermark-grid"></div>
+        <div className="chat-watermark-glow-1"></div>
+        <div className="chat-watermark-glow-2"></div>
+        <div className="chat-watermark-logo-wrapper">
+          <img src={logo} className="chat-watermark-logo" alt="" />
+        </div>
+      </div>
 
       <div className="login-card glass-card">
         {/* Brand Header */}

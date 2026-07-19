@@ -86,6 +86,18 @@ export default function ChatWindow({
         aria-live="polite"
         aria-label="Chat messages"
       >
+        {/* Background Watermark Layer */}
+        <div className="chat-watermark-container" aria-hidden="true">
+          <div className="chat-watermark-grid"></div>
+          <div className="chat-watermark-glow-1"></div>
+          <div className="chat-watermark-glow-2"></div>
+          <div className="chat-watermark-logo-wrapper">
+            <img src={logo} className="chat-watermark-logo" alt="" />
+            <div className="chat-watermark-text">LinguaBot</div>
+            <div className="chat-watermark-subtext">AI Language Assistant</div>
+          </div>
+        </div>
+
         {isEmpty ? (
           <WelcomeScreen onExampleClick={onSend} />
         ) : (

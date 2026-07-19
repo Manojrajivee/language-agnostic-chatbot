@@ -1032,8 +1032,8 @@ function PasswordResetConfirmScreen({ routeInfo, onComplete, onCancel }) {
 
   return (
     <div className="auth-overlay">
-      <div className="glass-card auth-modal" style={{ padding: '30px', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 16 }}>
-        <h2 style={{ color: 'var(--text-primary)', marginBottom: '16px', textAlign: 'center' }}>🔒 Reset Password</h2>
+      <div className="glass-card auth-modal" style={{ padding: '30px' }}>
+        <h2 style={{ marginBottom: '16px', textAlign: 'center' }}>🔒 Reset Password</h2>
         {success ? (
           <div style={{ textAlign: 'center' }}>
             <p style={{ color: 'var(--success)', marginBottom: '10px' }}>✅ Password reset successful!</p>
@@ -1043,7 +1043,7 @@ function PasswordResetConfirmScreen({ routeInfo, onComplete, onCancel }) {
           <form onSubmit={handleSubmit} className="auth-form">
             {error && <div className="auth-error">{error}</div>}
             <div className="form-group">
-              <label style={{ color: 'var(--text-secondary)', fontSize: 12 }}>New Password</label>
+              <label style={{ fontSize: 12 }}>New Password</label>
               <input
                 type="password"
                 value={password}
@@ -1053,7 +1053,7 @@ function PasswordResetConfirmScreen({ routeInfo, onComplete, onCancel }) {
               />
             </div>
             <div className="form-group">
-              <label style={{ color: 'var(--text-secondary)', fontSize: 12 }}>Confirm New Password</label>
+              <label style={{ fontSize: 12 }}>Confirm New Password</label>
               <input
                 type="password"
                 value={confirmPassword}
@@ -1062,7 +1062,7 @@ function PasswordResetConfirmScreen({ routeInfo, onComplete, onCancel }) {
                 placeholder="Re-enter new password"
               />
             </div>
-            <button type="submit" className="auth-submit-btn" disabled={loading} style={{ background: 'var(--accent-primary)', color: '#fff', borderRadius: 8, padding: 12, border: 'none', width: '100%', fontWeight: 'bold', cursor: 'pointer' }}>
+            <button type="submit" className="modal-submit-btn" disabled={loading}>
               {loading ? 'Updating password...' : 'Update Password'}
             </button>
             <button 
